@@ -1,0 +1,139 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage[a4paper, top=3cm]{geometry} % Reduce top margin
+\usepackage{listings}
+\usepackage{enumitem} 
+
+\title{Homework 1\\ CSC410 - Parallel Computing}
+\author{Aaron G. Alphonsus}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% 81 column comment
+%01234567890123456789012345678901234567890123456789012345678901234567890123456789
+
+\begin{enumerate}
+
+\item The identity values for each operator is as follows: 
+\begin{table}[ht]
+    \setlength{\parindent}{10ex}
+    \begin{tabular}{ll}
+        \&\&                 & 1 \\
+        $||$                 & 0 \\
+        $|$                  & 0 \\
+        \textasciicircum{}   & 0
+    \end{tabular}
+\end{table}
+
+\item We can do this by declaring a private variable inside the 
+\texttt{parallel} block and initializing it with the identity value of the 
+operator we are using. We then use the \texttt{critical} pragma before updating 
+the global variable.
+
+\item 
+\begin{enumerate}[label=(\alph*)]
+
+    \item 
+\begin{lstlisting}
+# pragma omp parallel for num_threads(thread_count) \
+    default(none) private(i) shared (a, b, x)
+    for(i=0; i<(int) sqrt(x); i++) {
+       a[i] = 2.3*i;
+       if (i < 10) b[i] = a[i];
+    }
+\end{lstlisting}
+
+    \item 
+    This seems to be a sequential program. It looks like the objective is
+    to start from the beginning of the \texttt{a} array and set each value to
+    \texttt{2.3*i}. The program should stop after the first instance of
+    \texttt{a[i] < b[i]} however, if we parallelize this, the flag could be set
+    at the wrong time and cause an early loop termination.
+
+    \item
+% should foo be included?
+\begin{lstlisting}
+# pragma omp parallel for num_threads(thread_count) \
+    default(none) private(i) shared (a, n) 
+    for(i=0; i<n; i++)
+       a[i] = foo(i);
+\end{lstlisting}
+
+    \item
+\begin{lstlisting}
+# pragma omp parallel for num_threads(thread_count) \
+    default(none) private(i) shared (a, b, n)
+    for(i=0; i<n; i++) {
+        a[i] = foo(i);
+        if(a[i] < b[i]) a[i] = b[i];
+    }
+\end{lstlisting}
+
+    \item
+    Similar to 3(b), this is not suitable for parallel execution because it
+    could cause an early loop termination when one of the threads executes the 
+    \texttt{break} statement.
+    
+    \item
+    % need to include private, shared?
+\begin{lstlisting}
+dotp = 0;
+# pragma omp parallel for num_threads(thread_count) \
+    default(none) private(i) shared (dotp, a, b, n) \
+    reduction(+: dotp)
+    for(i=0; i<n; i++)
+        dotp += a[i]*b[i];
+\end{lstlisting}
+        
+    \item
+\begin{lstlisting}
+# pragma omp parallel for num_threads(thread_count) \
+    default(none) private(i) shared (a, k) 
+    for(i=k; i<2*k; i++)
+        a[i] = a[i] + a[i-k];
+\end{lstlisting}
+
+    \item
+    This is similar to problem 3(g) but we need to be careful. Groups of
+    \texttt{k} positions may be filled in parallel but each subsequent group of
+    \texttt{k} positions depend on the preceding group
+    
+\end{enumerate} 
+
+\item
+Given that this is an \texttt{m}-stage pipeline and the task has \texttt{m} 
+sub-tasks, when \texttt{Task 1} comes in, it is completed after \texttt{m} 
+cycles. However, as the pipeline has now filled up, every cycle that follows 
+completes another task. So the completion times of \texttt{Task 2}, 
+\texttt{Task 3}, and \texttt{Task 4} are \texttt{m+1}, \texttt{m+2}, and 
+\texttt{m+3} respectively. 
+
+Therefore, for an \texttt{m}-stage pipeline executing \texttt{m} sub-tasks that 
+each require 1 unit of time, \texttt{n} tasks can be processed in \texttt{m+n-1}
+time.
+
+\item
+Perform an \texttt{XOR} between \texttt{u} and \texttt{v}. Count all the 1
+bits. This gives you the minimum number of steps to reach \texttt{v}. You may
+start from either end and flip each bit if they are different, keep them same if
+they match. 
+
+\begin{lstlisting}
+for each bit of u
+    if it differs from the bit of v in the same position 
+        change the bit // i.e. move to the neighboring node
+    // else stay at the same node
+	
+e.g. u = 110, v = 011 
+	Move to: 111
+	Move to: 111 
+	Move to: 011
+\end{lstlisting}
+
+\end{enumerate} 
+
+
+\end{document}
