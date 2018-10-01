@@ -67,7 +67,7 @@ double time_parallel(int inputs, int thread_count, int reps, int print)
         begin = omp_get_wtime(); 
         # pragma omp parallel for num_threads(thread_count) \
             default(none) reduction(+: solutions) private(i) \
-            shared(inputs, print) schedule(dynamic, 100) 
+            shared(inputs, print) // schedule(dynamic, 1) 
         for(j = 0; j < inputs; j++)
         {    
             int id = omp_get_thread_num();
@@ -85,7 +85,7 @@ double time_parallel(int inputs, int thread_count, int reps, int print)
     return time/reps;
 }
 
-double time_serial(int inputs, int thread_count, int reps, int print)
+double time_serial(int inputs, int reps, int print)
 {
     int i, j, solutions = 0;
     
@@ -113,7 +113,7 @@ double time_serial(int inputs, int thread_count, int reps, int print)
 
 int main(int argc, char* argv[])
 {
-    int print, reps = 1000;
+    int print, reps;
 
     if(argc != 3) 
         usage(argv[0]);
@@ -132,9 +132,9 @@ int main(int argc, char* argv[])
     double time_par, time_ser;
    
     time_par = time_parallel(inputs, thread_count, reps, print);
-    time_ser = time_serial(inputs, thread_count, reps, print);     
+    time_ser = time_serial(inputs, reps, print);     
 
-    printf("Parallel time %.4lf ms\n", time_par);
+    printf("Parallel time = %.4lf ms\n", time_par);
     printf("Serial time = %.4lf ms\n", time_ser); 
  
     return 0;
