@@ -1,9 +1,7 @@
-#include <ctype.h>
 #include <math.h>
 #include <omp.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 
 /*------------------------------------------------------------------
  * Function:  usage
@@ -156,6 +154,8 @@ int main(int argc, char* argv[])
         output(n, primes);
         // output_testing(n, primes);
     }     
+
+    free(primes);
 
     printf("Parallel time = %lf ms\n", time_par);
     printf("Serial time = %lf ms\n", time_ser);
