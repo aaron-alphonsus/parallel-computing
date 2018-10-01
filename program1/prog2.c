@@ -1,82 +1,94 @@
+#include <ctype.h>
 #include <math.h>
 #include <omp.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
-void Usage(char* prog_name);
-
-int main(int argc, char* argv[])
+/*------------------------------------------------------------------
+ * Function:  usage
+ * Purpose:   Print a message explaining how to run the program
+ * In arg:    prog_name
+ */
+void usage(char* prog_name) 
 {
-    long long n;
+    fprintf(stderr, "Usage: %s <n> <print> <reps>\n", prog_name); 
+    fprintf(stderr, "    Finds all primes less than or equal to n (n >= 2).\n");
+    fprintf(stderr, "    Enter 1 or 0 to print or suppress printing.\n");
+    fprintf(stderr, "    Number of repititions: reps >= 1"
+        " (for timing purposes).\n");
 
-    if (argc != 2) 
-        Usage(argv[0]);
-    n = strtoull(argv[1], NULL, 10);
-    if (n < 2) 
-        Usage(argv[0]);
+    exit(0);
+}
 
-    unsigned long long i, j, num_primes = 0, every_ten = 0;
-    int thread_count = 4; 
-    // printf("%d, %d\n", omp_get_num_procs(), omp_get_max_threads());
-
-    int padding;
-    unsigned long long primes[n-1];
-
-    # pragma omp parallel for num_threads(thread_count) 
-    for(i = 0; i <= n-2; i++)
-        primes[i] = 1; 
-   
-    int k, reps = 100;
-    double begin, end;
-    double time_par = 0.0, time_ser = 0.0;
+double time_parallel(int reps, unsigned long long n, unsigned long long* primes)
+{
+    int i, j, k, thread_count = 8;
+    double begin, end, time = 0.0; 
 
     for(k = 0; k < reps; k++) 
     {  
-        begin = omp_get_wtime(); 
         for(i = 0; i+2 <= sqrt(n); i++)
         {
-            // printf("(i, primes[i]) = (%lld, %lld)", i, primes[i]);
             if(primes[i] == 1)
             {
+                begin = omp_get_wtime();
+                
                 # pragma omp parallel for num_threads(thread_count) \
-                    default(none) private(j) shared(i, n, primes)
+                    default(none) private(j) shared(i, n, primes) \
+                    // schedule(dynamic, 100)
                 for(j = 2; j <= n/(i+2); j++) 
                     primes[(i+2)*j - 2] = 0;
+                
+                end = omp_get_wtime();
+                time += (double)((end-begin)*1000.0); 
             }
         }
-        end = omp_get_wtime();
-        time_par += (double)((end-begin)*1000.0); 
     }
-
+    return time/reps;
+} 
+ 
+double time_serial(int reps, unsigned long long n, unsigned long long* primes)
+{
+    int i, j, k;
+    double begin, end, time = 0.0;
+    
     for(k = 0; k < reps; k++) 
     {  
-        begin = omp_get_wtime(); 
         for(i = 0; i+2 <= sqrt(n); i++)
         {
-            // printf("(i, primes[i]) = (%lld, %lld)", i, primes[i]);
             if(primes[i] == 1)
             {
+                begin = omp_get_wtime(); 
+
                 for(j = 2; j <= n/(i+2); j++) 
                     primes[(i+2)*j - 2] = 0;
+
+                end = omp_get_wtime();
+                time += (double)((end-begin)*1000.0); 
             }
         }
-        end = omp_get_wtime();
-        time_ser += (double)((end-begin)*1000.0); 
     }
+    return time/reps; 
+}
 
-     
-    // For printing purposes
+void output(unsigned long long n, unsigned long long* primes)
+{
+    unsigned long long i, num_primes = 0, every_ten = 0;     
+    int padding; 
+
     for(i = 0; i <= n-2; i++)
         if(primes[i] == 1)
             num_primes++;
-    // printf("%lld, %lld\n", num_primes, 
-    //    (long long)floor(log10(num_primes-1))+1);
-    padding = floor(log10(num_primes-1)) + 1;
+    
+    if(num_primes == 1)
+        padding = 1;
+    else
+        padding = floor(log10(num_primes-1)) + 1;
 
     printf("%*d: ", padding, 0);
     for(i = 0; i <= n-2; i++)
     {
-        // printf("i = %lld, ", i);
         if(primes[i] == 1)
         {
             if(every_ten%10 == 0 && every_ten > 0)
@@ -85,40 +97,68 @@ int main(int argc, char* argv[])
             every_ten++;
         }
     }
+    printf("\n");
+}
 
-    // // Printing to match output of test files to run diff on
-    // int chars76 = 76;
-    // for(i = 0; i <= n-2; i++)
-    // {
-    //     if(primes[i] == 1)
-    //     {
-    //         chars76 -= (floor(log10(i+2))+2);
-    //         if(chars76 < 0)
-    //         {
-    //             printf("\n");
-    //             chars76 = 76 - (floor(log10(i+2))+2);
-    //         } 
-    //         printf("%lld,", i+2);
-    //         every_ten++;
-    //     }
-    // }
+void output_testing(unsigned long long n, unsigned long long* primes)
+{
+    // Printing to match output of test files to run diff on
+    unsigned long long i; 
+    int chars76 = 76;
+
+    for(i = 0; i <= n-2; i++)
+    {
+        if(primes[i] == 1)
+        {
+            chars76 -= (floor(log10(i+2))+2);
+            if(chars76 < 0)
+            {
+                printf("\n");
+                chars76 = 76 - (floor(log10(i+2))+2);
+            } 
+            printf("%lld,", i+2);
+        }
+    }
+    printf("\n");
+}
+
+int main(int argc, char* argv[])
+{
+    unsigned long long n;
+    int print = 0, reps = 10;
+
+    if(argc != 4) 
+        usage(argv[0]);
+    
+    n = strtoull(argv[1], NULL, 10);
+    print = strtol(argv[2], NULL, 10);
+    reps = strtol(argv[3], NULL, 10);
  
-    printf("\nParallel time = %lf ms\n", (double)time_par / reps);
-    printf("Serial time = %lf ms\n", (double)time_ser / reps);
+    if(n < 2) 
+        usage(argv[0]);
+    if(print != 1 && print != 0)
+        usage(argv[0]);
+    if(reps < 1)
+        usage(argv[0]);
+
+    unsigned long long i;
+    unsigned long long *primes = malloc(n * sizeof *primes); 
+    double time_par, time_ser;
+
+    for(i = 0; i <= n-2; i++)
+        primes[i] = 1;  
+
+    time_par = time_parallel(reps, n, primes); 
+    time_ser = time_serial(reps, n, primes); 
+ 
+    if(print) 
+    {
+        output(n, primes);
+        // output_testing(n, primes);
+    }     
+
+    printf("Parallel time = %lf ms\n", time_par);
+    printf("Serial time = %lf ms\n", time_ser);
     
     return 0;
 }
-
-// Separate out print function
-
-/*------------------------------------------------------------------
- * Function:  Usage
- * Purpose:   Print a message explaining how to run the program
- * In arg:    prog_name
- */
-void Usage(char* prog_name) 
-{
-   fprintf(stderr, "Usage: %s <n>\n", prog_name);  /* Change */
-   fprintf(stderr, "    Finds all primes less than or equal to n >= 2\n");
-   exit(0);
-}    
