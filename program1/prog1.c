@@ -6,11 +6,26 @@
 
 #include <omp.h>
 #include <math.h>
-#include <stdbool.h>
+#include <stdlib.h>
 #include <stdio.h>
 
+/*------------------------------------------------------------------
+ * Function:  usage
+ * Purpose:   Print a message explaining how to run the program
+ * In arg:    prog_name
+ */
+void usage(char* prog_name) 
+{
+   fprintf(stderr, "Usage: %s <print> <reps>\n", prog_name); 
+   fprintf(stderr, "    Enter 1 or 0 to print or suppress printing.\n");
+   fprintf(stderr, "    Number of repititions: reps >= 1"
+        " (for timing purposes).\n");
+   exit(0);
+}
+
+
 /* Check if a given input produces TRUE (a one) */
-int check_circuit (int id, int z, bool print)
+int check_circuit (int id, int z, int print)
 {
     int v[16]; /* Each element is a bit of z */
     int i;
@@ -40,7 +55,7 @@ int check_circuit (int id, int z, bool print)
         return 0;
 }
 
-double time_parallel(int inputs, int thread_count, int reps, bool print)
+double time_parallel(int inputs, int thread_count, int reps, int print)
 {
     int i, j, solutions = 0;
 
@@ -51,8 +66,8 @@ double time_parallel(int inputs, int thread_count, int reps, bool print)
     {                                                                             
         begin = omp_get_wtime(); 
         # pragma omp parallel for num_threads(thread_count) \
-            default(none) reduction(+: solutions, time) \
-            private(i) shared(inputs, print) schedule(dynamic, 1) 
+            default(none) reduction(+: solutions) private(i) \
+            shared(inputs, print) schedule(dynamic, 100) 
         for(j = 0; j < inputs; j++)
         {    
             int id = omp_get_thread_num();
@@ -70,9 +85,9 @@ double time_parallel(int inputs, int thread_count, int reps, bool print)
     return time/reps;
 }
 
-double time_serial(int inputs, int thread_count, int reps, bool print)
+double time_serial(int inputs, int thread_count, int reps, int print)
 {
-    int i, j, solutions;
+    int i, j, solutions = 0;
     
     double begin, end;
     double time = 0.0; 
@@ -96,13 +111,23 @@ double time_serial(int inputs, int thread_count, int reps, bool print)
     return time/reps; 
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    int print, reps = 1000;
+
+    if(argc != 3) 
+        usage(argv[0]);
+ 
+    print = strtol(argv[1], NULL, 10);
+    reps = strtol(argv[2], NULL, 10);
+ 
+    if(print != 1 && print != 0)
+        usage(argv[0]);
+    if(reps < 1)
+        usage(argv[0]);
+
     int inputs = pow(2, 16);    
     int thread_count = 8; 
-
-    int reps = 100;
-    bool print = false;
      
     double time_par, time_ser;
    
