@@ -40,16 +40,10 @@ int check_circuit (int id, int z, bool print)
         return 0;
 }
 
-int main()
+double time_parallel(int inputs, int thread_count, int reps, bool print)
 {
-    int i, j;
-    int n = pow(2, 16);    
-    int thread_count = 8; 
-    // printf("%d, %d\n", omp_get_num_procs(), omp_get_max_threads());
+    int i, j, solutions = 0;
 
-    int reps = 100;
-    bool print = false;
-    
     double begin, end;
     double time = 0.0;
 
@@ -57,12 +51,12 @@ int main()
     {                                                                             
         begin = omp_get_wtime(); 
         # pragma omp parallel for num_threads(thread_count) \
-            default(none) reduction(+: time) private(i) shared(n, print) \
-            schedule(static, 1) 
-        for(j = 0; j < n; j++)
+            default(none) reduction(+: solutions, time) \
+            private(i) shared(inputs, print) schedule(dynamic, 1) 
+        for(j = 0; j < inputs; j++)
         {    
             int id = omp_get_thread_num();
-            check_circuit(id, j, print);
+            solutions += check_circuit(id, j, print);
             
             // printf("%d: %d\n", j, check_circuit(j, j));
             // printf("%d\n", id);
@@ -70,20 +64,25 @@ int main()
         end = omp_get_wtime();
         time += (double)((end-begin)*1000.0);
     }
-    printf("Time %.4lf ms\n", (double)time / reps);
+    if(print)
+        printf("Number of solutions = %d\n\n", solutions);    
 
- 
+    return time/reps;
+}
+
+double time_serial(int inputs, int thread_count, int reps, bool print)
+{
+    int i, j, solutions;
+    
+    double begin, end;
+    double time = 0.0; 
+
     for(i = 0; i < reps; i++)                                                           
     {                                                                             
         begin = omp_get_wtime(); 
-        // # pragma omp parallel for num_threads(thread_count) \
-        //     default(none) reduction(+: time) private(i) shared(n, print) \
-        //     schedule(static, 1) 
-        for(j = 0; j < n; j++)
+        for(j = 0; j < inputs; j++)
         {    
-            // int id = omp_get_thread_num();
-            check_circuit(j, j, print);
-            // check_circuit(id, j, print);
+            solutions += check_circuit(j, j, print);
             
             // printf("%d: %d\n", j, check_circuit(j, j));
             // printf("%d\n", id);
@@ -91,7 +90,27 @@ int main()
         end = omp_get_wtime();
         time += (double)((end-begin)*1000.0);
     }
-    printf("Time %.4lf ms\n", (double)time / reps); 
+    if(print)
+        printf("Number of solutions = %d\n\n", solutions);
+    
+    return time/reps; 
+}
 
+int main()
+{
+    int inputs = pow(2, 16);    
+    int thread_count = 8; 
+
+    int reps = 100;
+    bool print = false;
+     
+    double time_par, time_ser;
+   
+    time_par = time_parallel(inputs, thread_count, reps, print);
+    time_ser = time_serial(inputs, thread_count, reps, print);     
+
+    printf("Parallel time %.4lf ms\n", time_par);
+    printf("Serial time = %.4lf ms\n", time_ser); 
+ 
     return 0;
 }
