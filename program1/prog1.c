@@ -183,7 +183,7 @@ double time_serial(int inputs, int reps, int print)
  * Function: main
  *
  * Purpose:  Checks command-line arguments and calls usage function if invalid
- *           Calls parallel and serial functions run and time each method 
+ *           Calls parallel and serial functions to run and time each method 
  *           Prints time taken by each method
  *
  * In args:  argc, argv
