@@ -1,5 +1,5 @@
 /* File:                                                                         
- *    prog2.c                                                                    
+ *    prog2.cu
  *                                                                               
  * Purpose:                                                                      
  *    TODO A brute force solution to a circuit-satisfiability question parallelizing
@@ -11,12 +11,12 @@
  * Output:                                                                       
  *    TODO All combinations of inputs that satisfy the circuit.
  *                                                                               
- * Compile: TODO                                                                     
- *    gcc -g -Wall -fopenmp -o prog1 prog1.c                                 
+ * Compile:
+ *    nvcc -o prog2 prog2.cu
  *     OR 
- *    make prog1                                                              
+ *    make
  * Usage:                                                                        
- *    ./prog1 <print> <reps>                                                 
+ *    ./prog2 (To profile: nvprof ./prog2)
  *                                                                               
  * Professor:                                                                    
  *    Dr. Christer Karlsson                                                      
@@ -30,39 +30,9 @@
 // #include <stdlib.h>
 // #include <math.h>
 
-void matvecMul_serial(unsigned long long int *A, unsigned long long int *B, 
-unsigned long long int *C, int n)
+__global__ void matvecMul(double *A, double *B, double *C, int n)
 {
-    unsigned long long int sum = 0;
-
-    for(int i = 0; i < n; i++)
-    {
-        sum = 0;
-        for (int j = 0; j < n; j++)
-            sum += A[i * n + j] * B[j];  
-        C[i] = sum;
-    }
-}
-
-__global__ void matvecMul(unsigned long long int *A, unsigned long long int *B, 
-unsigned long long int *C, int n)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned long long int sum = 0;
-   
-    if(index < n)
-    { 
-        // printf("index, A[index] = %d, %d\n", index, A[index]);
-        for(int j = 0; j < n; j++)
-            sum += A[index * n + j] * B[j];
-        C[index] = sum;
-    }
-}
-
-__global__ void matvecMul_flex(unsigned long long int *A, 
-unsigned long long int *B, unsigned long long int *C, int n)
-{
-    unsigned long long int sum = 0;
+    double sum = 0;
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
     
@@ -78,15 +48,15 @@ unsigned long long int *B, unsigned long long int *C, int n)
 int main(int argc, char* argv[])
 { 
     // Size of vectors
-    int n = 4096;
-    unsigned long long int sumofsq = 0; 
+    int n = 8192;
+    double sumofsq = 0;
     unsigned long long int wrong = 0;
 
     // Device input vectors
-    unsigned long long int *A;
-    unsigned long long int *B;
+    double *A;
+    double *B;
     // Device output vectors
-    unsigned long long int *C;
+    double *C;
 
     // Size, in bytes, of 'A' "matrix"
     size_t mat_bytes = n * n * sizeof(double); 
@@ -113,7 +83,6 @@ int main(int argc, char* argv[])
     //         printf("%*lld", padding, A[i * n + j]);
     //     printf("\n");
     // }
-
     // printf("Matrix B\n");
     // for(int i = 0; i < n; i++) 
     //     printf("%lld ", B[i]);
@@ -123,8 +92,9 @@ int main(int argc, char* argv[])
     int blockSize = 256;
     int gridSize = (int)ceil((float)n/blockSize);
     // Execute the kernel
-    matvecMul_flex<<<gridSize, blockSize>>>(A, B, C, n); 
-   
+    matvecMul<<<gridSize, blockSize>>>(A, B, C, n);
+    // matvecMul<<<1, 128>>>(A, B, C, n);
+
     // matvecMul_serial(A, B, C, n);
 
     // Wait for the GPU to finish
@@ -135,8 +105,8 @@ int main(int argc, char* argv[])
     
     printf("Matrix C\n");
     for(int i = 0; i < n; i++) 
-        printf("%lld ", C[i]);
-    printf("\n");
+        printf("%0.1lf ", C[i]);
+    printf("\n\n");
  
     // Check each C element with sumofsq
     for(int i = 0; i < n; i++) 
@@ -144,8 +114,8 @@ int main(int argc, char* argv[])
             wrong++;
     printf("Number of positions incorrect = %lld\n", wrong); 
 
-    printf("n, sumofsq = %d, %lld\n", n, sumofsq);
-    printf("<<<gridSize, blockSize>>> = <<<%d, %d>>>\n", gridSize, blockSize);
+    printf("n, sumofsq = %d, %0.1lf\n", n, sumofsq);
+    printf("<<<gridSize, blockSize>>> = <<<%d, %d>>>\n\n", gridSize, blockSize);
 
     // Release Unified Memory 
     cudaFree(A);
