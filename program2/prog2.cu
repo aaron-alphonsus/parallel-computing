@@ -71,9 +71,9 @@ int main(int argc, char* argv[])
     // Initialize vectors on host
     for(int i = 0; i < n; i++) 
         for(int j = 0; j < n; j++)
-            A[i * n + j] = j; 
+            A[i * n + j] = j+1;
     for(int i = 0; i < n; i++) 
-        B[i] = i;
+        B[i] = i+1;
 
     // int padding = 3;
     // printf("Matrix A\n");
@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
     cudaDeviceSynchronize();
   
     for(int i = 0; i < n; i++)
-        sumofsq += i*i;
+        sumofsq += (i + 1) * (i + 1);
     
     printf("Matrix C\n");
     for(int i = 0; i < n; i++) 
