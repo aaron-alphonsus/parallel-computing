@@ -5,7 +5,7 @@
  * Purpose:                                                                      
  *    Host program and CUDA kernel to multiply a square (n x n) matrix with a
  *    vector of length n. Each row of the square matrix is initialized from 1 to
- *    and the vector is also initialized from 1 to n. The resultant vector
+ *    n and the vector is also initialized from 1 to n. The resultant vector
  *    contains the sum of squares from 1 to n.
  *                                                                               
  * Input:                                                                        
@@ -35,8 +35,9 @@
  * Function: matvecMul
  *
  * Purpose:  CUDA kernel code that executes the matrix-vector multiplication on
- *           the GPU. We have gone with coarse-grained parallelism here: each
- *           thread multiplies a row of A with B serially.
+ *           the GPU. We have gone with coarse-grained parallelism here: threads
+ *           run in parallel for each row of A but execute the dot-product
+ *           multiplication serially.
  *
  * In args:  A, B, C, n
  *
@@ -105,21 +106,21 @@ int main()
     // Initialize vectors on host
     for(int i = 0; i < n; i++) 
         for(int j = 0; j < n; j++)
-            A[i * n + j] = j+1;
+            A[i * n + j] = j + 1;
     for(int i = 0; i < n; i++) 
-        B[i] = i+1;
+        B[i] = i + 1;
 
-    // int padding = 3;
+    // int padding = 6;
     // printf("Matrix A\n");
     // for(int i = 0; i < n; i++) 
     // {
     //     for(int j = 0; j < n; j++)
-    //         printf("%*lld", padding, A[i * n + j]);
+    //         printf("%*.1lf", padding, A[i * n + j]);
     //     printf("\n");
     // }
     // printf("Matrix B\n");
     // for(int i = 0; i < n; i++) 
-    //     printf("%lld ", B[i]);
+    //     printf(" %0.1lf", B[i]);
     // printf("\n");
 
     // No. of threads in each thread block and no. of thread blocks in grid
@@ -138,7 +139,7 @@ int main()
     // Print out matrix C
     printf("Matrix C\n");
     for(int i = 0; i < n; i++) 
-        printf("%0.1lf ", C[i]);
+        printf(" %0.1lf", C[i]);
     printf("\n\n");
  
     // Check each C element with sumofsq
