@@ -154,16 +154,19 @@ int main (int argc, char* argv[])
         else 
             perm = ithPermutation(n, i);
         
-        is_soln += checkDiag(n, perm);
+        is_soln = checkDiag(n, perm);
         if(is_soln)
         {
             subtotal += is_soln;
             is_soln = 0;
-       
-            // print permutation
-            for (int k = 0; k < n; ++k)
-                printf("%d ", perm[k]);
-            printf("\n");
+      
+            if(print) 
+            {
+                // print permutation
+                for (int k = 0; k < n; ++k)
+                    printf("%d ", perm[k]);
+                printf("\n");
+            }
         }
 
         // printf("Process %d: %lld\n", id, i); 
@@ -173,16 +176,19 @@ int main (int argc, char* argv[])
         for(unsigned long long i = chunk*p; i < nfact; i++)   
         {
             std::next_permutation(perm, perm + n); 
-            is_soln += checkDiag(n, perm);    
+            is_soln = checkDiag(n, perm);    
             if(is_soln)
             {
                 subtotal += is_soln;
                 is_soln = 0;
        
-                // print permutation
-                for (int k = 0; k < n; ++k)
-                    printf("%d ", perm[k]);
-                printf("\n");
+                if(print) 
+                {
+                    // print permutation
+                    for (int k = 0; k < n; ++k)
+                        printf("%d ", perm[k]);
+                    printf("\n");
+                }
             }
 
             // printf("Process %d: %lld\n", id, i); 
