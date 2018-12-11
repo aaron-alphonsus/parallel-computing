@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
 
 /*------------------------------------------------------------------------------
  * Function: usage
@@ -22,30 +24,27 @@ void usage(char* prog_name)
     exit(0);
 }
 
-int ithPermutation(const int n, int i)
+int* ithPermutation(int n, unsigned long long i)
 {
-    // Source: https://stackoverflow.com/questions/7918806/finding-n-th-permutation-without-computing-others/7919887#7919887
-
     int j, k = 0;
-    int *fact = (int *)calloc(n, sizeof(int));
+    unsigned long long quo;
     int *perm = (int *)calloc(n, sizeof(int));
-    int verticalDist, horizontalDist;
-    int sameDiag = 0;
+    // unsigned long long *fact = (unsigned long long *)calloc(n, sizeof(unsigned long long));
+    // int *factoradic = (int *)calloc(n, sizeof(int));
+    // std::vector<int> sequence;
  
-    // TODO: Change this method to divide with integers 1, 2, ... until 
-    //  0 remainder 
-
-    // compute factorial numbers
-    fact[k] = 1;
-    while (++k < n)
-        fact[k] = fact[k - 1] * k;
-
-    // compute factorial code
-    for (k = 0; k < n; ++k)
+    k = 1;
+    quo = i;
+    while(quo / (k+1) > 0)
     {
-        perm[k] = i / fact[n - 1 - k];
-        i = i % fact[n - 1 - k];
+        k++;
+        // printf("%d %d %d\n", quo / k, k, quo % k); 
+        perm[n-k] = quo % k;
+        quo /= k;
     }
+    k++;
+    perm[n-k] = quo % k;
+    // printf("%d %d %d\n", quo / k, k, quo % k); 
 
     // // factoradic representation
     // for (k = 0; k < n; ++k)
@@ -59,45 +58,51 @@ int ithPermutation(const int n, int i)
             if (perm[j] <= perm[k])
                 perm[k]++;
 
+    // for(j = 0; j < n; j++)
+    //     sequence.push_back(j);    
+    // for(j = 0; j < n; j++)
+    // {
+    //     perm[j] = sequence[factoradic[j]];
+    //     sequence.erase(sequence.begin() + factoradic[j]);
+    // }         
+
     // // print permutation
     // for (k = 0; k < n; ++k)
     //     printf("%d ", perm[k]);
     // printf("\n");
 
-    j = 0;
-    k = 0; 
-    while(j < n && sameDiag == 0)
+    // free(factoradic);
+
+    return perm;
+}
+
+int checkDiag(int n, int perm[])
+{
+    int i = 0, j = 0;
+    int sameDiag = 0;
+    int verticalDist, horizontalDist;
+
+    while(i < n && sameDiag == 0)
     {
-        k = j + 1;
-        while(k < n && sameDiag == 0)
+        j = i + 1;
+        while(j < n && sameDiag == 0)
         {
-            // printf("(perm[j], j), (perm[k], k) = " 
-            //          "(%d, %d), (%d, %d)\n", perm[j], j, perm[k], k);
-            verticalDist = abs(perm[j] - perm[k]);
-            horizontalDist = abs(j - k);
+            // printf("(perm[i], i), (perm[j], j) = " 
+            //          "(%d, %d), (%d, %d)\n", perm[i], i, perm[j], j);
+            verticalDist = abs(perm[i] - perm[j]);
+            horizontalDist = abs(i - j);
             // printf("ver, hor = %d, %d\n", verticalDist, horizontalDist); 
             
             if(verticalDist == horizontalDist)
                 sameDiag++; 
 
-            k++;
+            j++;
         }
-        j++; 
-    }      
-    
-    free(fact);
-    free(perm);
-
-    // printf("!sameDiag = %d\n", !sameDiag); 
+        i++; 
+    } 
 
     return !sameDiag;
 }
-
-// // Same macro as appeared in circuitsat1.c
-// #define EXTRACT_BIT(n,i) ( ((n)&(1 <<(i)) ) ?1:0)
-// 
-// // check_circuit (id ,n) is same as in circuitsat1.c
-// int check_circuit(int proc_id, int inputval);
 
 int main (int argc, char* argv[]) 
 {
@@ -116,52 +121,91 @@ int main (int argc, char* argv[])
     if(print != 1 && print != 0)
         usage(argv[0]);
 
-    int id, p;
+    int id, p, is_soln = 0, min_chunk = 2;
     unsigned long long nfact = 1; // Good enough till n = 20
-    // int chunk, min_chunk = 2; 
+    unsigned long long chunk; 
     
-    int subtotal, grand_total;
+    int *perm = (int *)calloc(n, sizeof(int));
+ 
+    unsigned long long subtotal = 0, grand_total = 0;
     double elapsed_time; /* Time to find, count solutions */
 
-    // Why don't I have to put an if statement with id = 0 around this?
     for(int i = 1; i < n+1; i++)
-        nfact *= i; 
+        nfact *= i;
 
     MPI_Init (&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
 
-    // chunk = fmax(min_chunk, ceil((float) nfact / p));   
+    chunk = fmax(min_chunk, floor((float) nfact / p));   
+    // if(id == 0)
+    //     printf("chunk = %lld", chunk);
  
     /* Start timer */
     MPI_Barrier(MPI_COMM_WORLD);
     elapsed_time = -MPI_Wtime();
 
-    // for(unsigned long long i = chunk*id; i < nfact && i < chunk*(id+1); i++)
-    //     printf("Process %d: %lld\n", id, i); 
-    
-    subtotal = 0;
-    for(unsigned long long i = id; i < nfact; i += p)
-    {
-        // printf("Process %d: %lld\n", id, i); 
-        subtotal += ithPermutation(n, i); 
-    }  
+    // printf("Process %d range = [%lld, %lld]\n", id, chunk*id, chunk*(id+1));
 
-    MPI_Reduce(&subtotal, &grand_total, 1, MPI_INT, 
+    for(unsigned long long i = chunk*id; i < nfact && i < chunk*(id+1); i++)
+    {    
+        if(i != chunk*id)
+            std::next_permutation(perm, perm + n);        
+        else 
+            perm = ithPermutation(n, i);
+        
+        is_soln += checkDiag(n, perm);
+        if(is_soln)
+        {
+            subtotal += is_soln;
+            is_soln = 0;
+       
+            // print permutation
+            for (int k = 0; k < n; ++k)
+                printf("%d ", perm[k]);
+            printf("\n");
+        }
+
+        // printf("Process %d: %lld\n", id, i); 
+    } 
+    if(id == p-1)
+    {
+        for(unsigned long long i = chunk*p; i < nfact; i++)   
+        {
+            std::next_permutation(perm, perm + n); 
+            is_soln += checkDiag(n, perm);    
+            if(is_soln)
+            {
+                subtotal += is_soln;
+                is_soln = 0;
+       
+                // print permutation
+                for (int k = 0; k < n; ++k)
+                    printf("%d ", perm[k]);
+                printf("\n");
+            }
+
+            // printf("Process %d: %lld\n", id, i); 
+        }
+    } 
+
+    MPI_Reduce(&subtotal, &grand_total, 1, MPI_UNSIGNED_LONG_LONG, 
         MPI_SUM , 0, MPI_COMM_WORLD);
     
-    if(id == 0)
-        printf ("%d\n", grand_total );    
- 
     MPI_Barrier (MPI_COMM_WORLD);
     /* Stop timer */
     elapsed_time += MPI_Wtime(); /* elapsed time=current time-start time */
 
     if (0 == id) {
+        // printf("p = %d\n", p);
+        printf ("%lld\n", grand_total ); 
         printf ("Execution time %8.3f ms\n", 1000*elapsed_time);
         fflush (stdout);
     }
 
     MPI_Finalize();
+    
+    free(perm);
+    
     return 0;
 }
