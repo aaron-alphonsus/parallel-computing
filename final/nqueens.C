@@ -8,8 +8,8 @@
  *     solutions printed to the screen. The program generates and evaluates all 
  *     possible positions where queens do not share a row or column. It does 
  *     this in parallel using the MPI model. The program divides up chunks of 
- *     possible positions that a process can check allowing each to take 
- *     advantage of the next_permutation() function.  
+ *     possible positions that a process can check which allows each process to 
+ *     take advantage of the next_permutation() function.  
  *                                                                               
  * Input:                                                                        
  *     unsigned long long n (>=1), int print (1 or 0)
@@ -22,7 +22,7 @@
  *      OR 
  *     make
  * Usage:                                                                        
- *     ./nqueens <n> <print>
+ *     mpirun -np <number_of_processes> -hostfile <path_to_hostfile> ./nqueens <n> <print>
  *                                                                               
  * Professor:                                                                    
  *     Dr. Christer Karlsson                                                      
@@ -35,9 +35,6 @@
 #include <algorithm>
 #include <math.h>
 #include <mpi.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <vector>
 
 /*------------------------------------------------------------------------------
  * Function: usage
@@ -83,9 +80,6 @@ int* ithPermutation(int n, unsigned long long i)
     // Allocate space for permutation array and initialize to 0
     int *perm = (int *)calloc(n, sizeof(int));
     
-    // int *factoradic = (int *)calloc(n, sizeof(int));
-    // std::vector<int> sequence;
-
     // Divide 'i' repeatedly by natural numbers until the quotient is 0
     // Yields the 'factoradic' representation of the decimal number i 
     k = 1;
@@ -105,16 +99,6 @@ int* ithPermutation(int n, unsigned long long i)
         for (j = k - 1; j >= 0; --j)
             if (perm[j] <= perm[k])
                 perm[k]++;
-
-    // for(j = 0; j < n; j++)
-    //     sequence.push_back(j);    
-    // for(j = 0; j < n; j++)
-    // {
-    //     perm[j] = sequence[factoradic[j]];
-    //     sequence.erase(sequence.begin() + factoradic[j]);
-    // }         
-
-    // free(factoradic);
 
     return perm;
 }
@@ -168,7 +152,7 @@ int checkDiag(int n, int perm[])
  * Purpose:  
  *     Checks command-line arguments and calls usage function if invalid. 
  *     Defines how the problem is divided among the available processors. Each
- *     processor keeps a local count of the number of solutions found which is 
+ *     process keeps a local count of the number of solutions found which is 
  *     later combined into a global total count using a reduction. Number of 
  *     solutions and execution time is printed to the console. Each valid 
  *     solution is also printed if the user sets the print command-line argument
@@ -291,6 +275,7 @@ int main (int argc, char* argv[])
     if (0 == id) {
         printf ("%lld\n", grand_total ); 
         printf ("Execution time %8.3f ms\n", 1000*elapsed_time);
+        // printf ("Processors = %d\n", p);
         fflush (stdout);
     }
 
